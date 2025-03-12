@@ -4,6 +4,7 @@
 #include <AsyncTCP.h>
 #include <ESPAsyncWebServer.h>
 #include <Preferences.h>
+#include "Settings.h"
 
 int transmitPin = 5;
 int receivePin = 8;
@@ -19,8 +20,8 @@ const int resolution = 8; // Risoluzione (8 bit = 0-255)
 const int channel = 2;  // Canale PWM
 
 
-const char* ssid = "ESP32-DMX";
-const char* password = "password";
+
+const char* password = "12345678";
 int dmxSlot = 1;
 
 AsyncWebServer server(80);
@@ -28,170 +29,154 @@ Preferences preferences;
 
 const char PAGE_HOME[] PROGMEM = R"=====(
 <!DOCTYPE html>
-<html>
+<html lang="it">
 <head>
-    <title>Imposta Slot DMX</title>
+    <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Controllo DMX</title>
     <style>
         body {
-            font-family: sans-serif;
+            font-family: 'Segoe UI', Roboto, sans-serif;
             margin: 0;
             padding: 0;
-            background: linear-gradient(135deg, #e0eafc, #68a2e8);
+            background: linear-gradient(135deg, #007aff, #00c6ff);
             height: 100vh;
             display: flex;
-            flex-direction: column;
             align-items: center;
             justify-content: center;
         }
 
-        .header {
-            width: 100%;
-            background: linear-gradient(to right, #4a00e0, #8e2de2);
-            color: white;
-            text-align: center;
-            padding: 20px 0;
-            margin-bottom: 20px;
-            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
-        }
-
         .container {
-            background-color: rgba(255, 255, 255, 0.9);
+            background: white;
             padding: 30px;
-            border-radius: 10px;
-            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+            border-radius: 16px;
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
             text-align: center;
-            width: 90%; /* Larghezza adattabile ai dispositivi mobili */
-            max-width: 400px; /* Larghezza massima */
+            width: 90%;
+            max-width: 420px;
         }
 
         h1 {
             color: #333;
+            font-size: 24px;
             margin-bottom: 20px;
         }
 
         label {
             display: block;
-            margin-bottom: 10px;
+            margin-bottom: 8px;
             color: #555;
-            text-align: left; /* Allineamento a sinistra per i label */
+            font-size: 16px;
+            font-weight: 500;
+        }
+
+        input[type="number"], input[type="submit"] {
+            width: 100%;
+            padding: 14px;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            box-sizing: border-box;
+            font-size: 16px;
+            transition: 0.3s ease;
         }
 
         input[type="number"] {
-            padding: 12px;
-            border: 1px solid #ccc;
-            border-radius: 5px;
-            width: calc(100% - 24px); /* Larghezza adattabile */
-            margin-bottom: 20px;
-            box-sizing: border-box; /* Include padding e border nella larghezza */
+            margin-bottom: 16px;
         }
 
         input[type="submit"] {
-            background-color: #4CAF50;
+            background-color: #007aff;
             color: white;
-            padding: 14px 20px;
+            font-weight: bold;
             border: none;
-            border-radius: 5px;
             cursor: pointer;
-            font-size: 16px;
-            width: 100%; /* Larghezza adattabile */
         }
 
         input[type="submit"]:hover {
-            background-color: #45a049;
+            background-color: #005ecb;
+        }
+
+        .slider-container {
+            margin-top: 20px;
+        }
+
+        .slider-wrapper {
+            position: relative;
+            text-align: center;
         }
 
         .slider {
-            -webkit-appearance: none;
             width: 100%;
+            appearance: none;
             height: 8px;
             border-radius: 5px;
-            background: #d3d3d3;
+            background: #ddd;
             outline: none;
-            opacity: 0.7;
-            -webkit-transition: .2s;
-            transition: opacity .2s;
+            transition: opacity 0.2s;
         }
-        
+
         .slider:hover {
             opacity: 1;
         }
-        
+
         .slider::-webkit-slider-thumb {
-            -webkit-appearance: none;
             appearance: none;
             width: 20px;
             height: 20px;
             border-radius: 50%;
-            background: #800020;
+            background: #007aff;
             cursor: pointer;
-            vertical-align: middle;
-        }
-        
-        .slider::-webkit-slider-runnable-track {
-            background: #800020;
-            height: 8px;
-            border-radius: 5px;
-        }
-        
-        .slider:focus {
-            outline: none;
-        }
-        
-        .slider:focus::-webkit-slider-thumb {
-            box-shadow: 0 0 5px #800020;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
         }
 
+        .slider-value {
+            margin-top: 8px;
+            font-size: 16px;
+            font-weight: bold;
+            color: #007aff;
+        }
     </style>
-
     <script>
-
         function sendVoltageControl(value) {
-          fetch(`/phd_voltage?voltage=${value}`)
-            .then(response => {
-                if (response.ok) {
-                    console.log("Voltage control sent successfully with value:", value);
-                } else {
-                    console.error("Failed to send voltage control");
-                }
-            });
+            fetch(`/phd_voltage?voltage=${value}`)
+                .then(response => {
+                    if (response.ok) {
+                        console.log("Voltage control sent successfully with value:", value);
+                    } else {
+                        console.error("Failed to send voltage control");
+                    }
+                });
+            document.getElementById('sliderValue').textContent = value;
         }
-
     </script>
 </head>
 <body>
-    <div class="header">
-        <h1>Controllo DMX</h1>
-    </div>
     <div class="container">
         <h1>Imposta Slot DMX</h1>
         <form action="/setSlot" method="get">
             <label for="slot">Slot DMX:</label>
-            <input type="number" id="slot" name="slot" value="">
+            <input type="number" id="slot" name="slot" min="1" max="512" placeholder="Inserisci numero slot">
             <input type="submit" value="Imposta">
         </form>
-
+        
         <div class="slider-container">
-            <label class="slider-label" for="voltageSlider">Imposta valore PWM</label>
+            <label for="voltageSlider">Imposta valore PWM</label>
             <div class="slider-wrapper">
                 <input type="range" min="0" max="255" step="1" value="0" class="slider" id="voltageSlider" oninput="sendVoltageControl(this.value)">
+                <div class="slider-value" id="sliderValue">0</div>
             </div>
         </div>
-
     </div>
-
-
-    
-
 </body>
 </html>
+
 )=====";
 
 void setup() {
   Serial.print("Init...");
   preferences.begin("config", true);
   Serial.print("Recupero slot DMX: ");
-  dmxSlot = preferences.getUInt("slot", 1);
+  dmxSlot = Settings::getInstance()-> readInt("dmxSlot", 1);
   Serial.println(dmxSlot);
 
 
@@ -203,6 +188,13 @@ void setup() {
   int personality_count = 1;
   dmx_driver_install(dmxPort, &config, personalities, personality_count);
   dmx_set_pin(dmxPort, transmitPin, receivePin, enablePin);
+
+  uint64_t chipId = ESP.getEfuseMac();
+  // Converti il chipId in una stringa esadecimale
+  String chipIdStr = String((uint32_t)(chipId >> 32), HEX) + String((uint32_t)chipId, HEX);
+
+  // Crea l'SSID con il chipId
+  String ssid = "DMX_"+ chipIdStr;
 
 
   WiFi.softAP(ssid, password);
@@ -216,27 +208,23 @@ void setup() {
 
   server.on("/setSlot", HTTP_GET, [](AsyncWebServerRequest *request){
     if(request->hasParam("slot")){
-      dmxSlot = request->getParam("slot")->value().toInt();
-      Serial.print("Slot DMX impostato a: ");
-      Serial.println(dmxSlot);
-
-      preferences.begin("config", false);
-
-      preferences.putUInt("slot", dmxSlot);
       
-      dmxSlot = preferences.getUInt("slot", 1);
-      Serial.print("Recupero slot DMX: ");
+      dmxSlot = request->getParam("slot")->value().toInt();
+    
+      dmxSlot = Settings::getInstance()-> writeInt("dmxSlot", dmxSlot);
+  
+      Serial.print("Slot DMX impostato a: ");
       Serial.println(dmxSlot);
 
       preferences.end();
 
       String resp = "Slot DMX impostato con successo a " + String(dmxSlot);
       
-      request->send(200, "text/html", resp);
+       request->send(200, "text/plain", resp);
     } 
     else
     {
-      request->send(400, "text/html", "Parametro 'slot' mancante.");
+      request->send(400, "text/plain", "Parametro 'slot' mancante.");
     }
   });
 
